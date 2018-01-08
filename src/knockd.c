@@ -171,6 +171,7 @@ int main(int argc, char **argv)
 	ip_literal_t *myip;
 	char pcapErr[PCAP_ERRBUF_SIZE] = "";
 	int opt, ret, optidx = 1;
+	struct sockaddr_in6 *sin6;
 
 	static struct option opts[] =
 	{
@@ -276,6 +277,12 @@ int main(int argc, char **argv)
 				continue;
 
 			if((strcmp(ifa->ifa_name, o_int) == 0) && (ifa->ifa_addr->sa_family == AF_INET || (ifa->ifa_addr->sa_family == AF_INET6 && !o_skipIpV6))) {
+				sin6 = (struct sockaddr_in6 *) ifa->ifa_addr;
+				/* Ignore site-local and link-local IPv6 addresses. */
+				if ((ifa->ifa_addr->sa_family == AF_INET6) 
+					&& (IN6_IS_ADDR_SITELOCAL(sin6->sin6_addr.s6_addr) 
+					|| IN6_IS_ADDR_LINKLOCAL(sin6->sin6_addr.s6_addr)))
+					continue;
 				if (ifa->ifa_addr->sa_family == AF_INET6)
 					hasIpV6 = 1;
 				if((myip = calloc(1, sizeof(ip_literal_t))) == NULL) {
@@ -293,9 +300,6 @@ int main(int argc, char **argv)
 						freeifaddrs(ifaddr);
 						cleanup(1);
 					} else {
-						char * ptr = strchr(myip->value,'%');
-						if (ptr != NULL)
-							*ptr = '\0';
 						if(myips)
 							myip->next = myips;
 						myips = myip;
